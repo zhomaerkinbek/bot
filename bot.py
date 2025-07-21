@@ -12,7 +12,7 @@ from telegram.ext import (
 
 # --- Настройки ---
 TOKEN = os.environ["BOT_TOKEN"]
-TARGET_WORDS = ["Аня", "баг", "ошибка"]
+TARGET_WORDS = ["Daniel", "Даниэль", "Даниэля", "Даниэлю", "Даниэлем"]
 
 # --- Логирование ---
 logging.basicConfig(level=logging.INFO)
