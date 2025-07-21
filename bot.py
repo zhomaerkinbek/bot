@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     ContextTypes,
     MessageHandler,
     CommandHandler,
@@ -64,7 +64,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- Запуск в webhook ---
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_mentions))
     app.add_handler(CommandHandler("stats", stats_command))
 
