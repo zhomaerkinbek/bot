@@ -1,3 +1,10 @@
+import sys, platform
+print(f"🛠️ Python: {platform.python_version()}, Telegram‑Bot: ", end="")
+try:
+    import telegram
+    print(telegram.__version__)
+except ImportError:
+    print("telegram not installed")
 import os
 import logging
 import sqlite3
