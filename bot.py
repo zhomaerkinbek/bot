@@ -1,18 +1,28 @@
 import os
 import sqlite3
-from flask import Flask, request, abort
+from flask import Flask, request
 from telegram import Bot, Update
 
-# 1) Параметры
+# --- Настройки ---
 TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_PATH = "/webhook"
 PORT = int(os.environ.get("PORT", 8443))
 
-# 2) Инициализация Flask и Telegram Bot
+# --- Flask и Bot ---
 app = Flask(__name__)
 bot = Bot(token=TOKEN)
 
-# 3) Инициализация SQLite
+# --- Синонимы и базовый ключ ---
+# все мини-слова (lowercase) мапятся в один базовый:
+SYNONYM_MAP = {
+    "даниэль": "Даниэль",
+    "даниэля": "Даниэль",
+    "даниэлю": "Даниэль",
+    "daniel":   "Даниэль",
+    "даниэл":   "Даниэль",
+}
+
+# --- БД SQLite ---
 conn = sqlite3.connect("mentions.db", check_same_thread=False)
 cur = conn.cursor()
 cur.execute("""
@@ -26,52 +36,62 @@ cur.execute("""
 """)
 conn.commit()
 
-TARGET_WORDS = ["Аня", "баг", "ошибка"]
-
-# 4) Основной Webhook‑эндпоинт
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
     data = request.get_json(force=True)
-    if not data:
-        return "no data", 400
-
     update = Update.de_json(data, bot)
 
-    if update.message and update.message.text:
-        text = update.message.text.lower()
-        user = update.effective_user
+    if not (update.message and update.message.text):
+        return "OK"
 
-        # подсчет упоминаний
-        for word in TARGET_WORDS:
-            if word.lower() in text:
-                cur.execute(
-                    """
-                    INSERT INTO mentions(word, user_id, username, count)
-                    VALUES (?, ?, ?, 1)
-                    ON CONFLICT(word, user_id) DO UPDATE SET count = count + 1;
-                    """,
-                    (word, user.id, user.full_name),
-                )
-                conn.commit()
+    text = update.message.text.lower()
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+
+    # --- Обработка команды /stats ---
+    if text.startswith("/stats"):
+        parts = text.split(maxsplit=1)
+        if len(parts) < 2:
+            bot.send_message(chat_id, "Использование: /stats <слово>\nПример: /stats Даниэль")
+        else:
+            arg = parts[1].strip().lower()
+            base = SYNONYM_MAP.get(arg)
+            if not base:
+                base = arg.capitalize()  # если не в мапе, используем как есть
+            cur.execute(
+                "SELECT username, count FROM mentions WHERE word = ? ORDER BY count DESC",
+                (base,),
+            )
+            rows = cur.fetchall()
+            if not rows:
+                bot.send_message(chat_id, f"Никто ещё не упоминал «{base}».")
+            else:
+                lines = [f"{u}: {c}" for u, c in rows]
+                msg = f"📊 Статистика упоминаний «{base}»:\n" + "\n".join(lines)
+                bot.send_message(chat_id, msg)
+        return "OK"
+
+    # --- Подсчёт упоминаний СИНОНИМОВ ---
+    for form, base in SYNONYM_MAP.items():
+        if form in text:
+            # увеличиваем счётчик по базовому ключу
+            cur.execute(
+                """
+                INSERT INTO mentions(word, user_id, username, count)
+                VALUES (?, ?, ?, 1)
+                ON CONFLICT(word, user_id) DO UPDATE SET count = count + 1;
+                """,
+                (base, user.id, user.full_name),
+            )
+            conn.commit()
+            # (по желанию) уведомление в чат:
+            bot.send_message(
+                chat_id=chat_id,
+                text=f"🔔 {user.full_name} упомянул «{base}»!"
+            )
+            break  # только одно уведомление за сообщение
+
     return "OK"
 
-# 5) Команда /stats (через отдельный маршрут)
-@app.route("/stats/<word>", methods=["GET"])
-def stats(word):
-    cur.execute(
-        "SELECT username, count FROM mentions WHERE word = ? ORDER BY count DESC",
-        (word,),
-    )
-    rows = cur.fetchall()
-    if not rows:
-        return {"word": word, "stats": []}
-
-    return {
-        "word": word,
-        "stats": [{ "user": u, "count": c } for u, c in rows]
-    }
-
-# 6) Запуск
 if __name__ == "__main__":
-    # Flask‑сервер на 0.0.0.0:$PORT
     app.run(host="0.0.0.0", port=PORT)
