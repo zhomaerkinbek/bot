@@ -37,30 +37,43 @@ def send(chat_id: int, text: str):
         json={"chat_id": chat_id, "text": text}
     )
 
-# === Извлечение целевого пользователя ===
+def resolve_username(username: str):
+    """
+    Через Telegram API getChat получаем объект Chat по '@username'
+    и возвращаем простой объект с полями id и full_name.
+    """
+    resp = requests.get(
+        f"https://api.telegram.org/bot{TOKEN}/getChat",
+        params={"chat_id": username}
+    ).json()
+    if not resp.get("ok"):
+        return None
+    r = resp["result"]
+    class U: pass
+    u = U()
+    u.id = r["id"]
+    # составляем полное имя из first_name и last_name, если есть
+    u.full_name = " ".join(filter(None, [r.get("first_name"), r.get("last_name")]))
+    return u
+
 def extract_target_user(update: Update):
-    msg = update.message
+    msg     = update.message
     chat_id = msg.chat.id
 
-    # 1) Пользователь – автор того сообщения, на которое ответили
+    # 1) Ответ на сообщение
     if msg.reply_to_message:
         return msg.reply_to_message.from_user
 
-    # 2) По entity TEXT_MENTION (когда вы упоминаете контакт напрямую)
+    # 2) TEXT_MENTION даст сразу .user
     if msg.entities:
         for ent in msg.entities:
             if ent.type == MessageEntity.TEXT_MENTION:
                 return ent.user
 
-            # 3) По обычному упоминанию @username
+            # 3) Для обычного '@username' используем getChat
             if ent.type == MessageEntity.MENTION:
-                username = msg.text[ent.offset : ent.offset + ent.length]  # e.g. "@ivan"
-                try:
-                    # Получаем информацию об участнике чата с этим username
-                    member = bot.get_chat_member(chat_id, username)
-                    return member.user
-                except TelegramError:
-                    return None
+                username = msg.text[ent.offset : ent.offset + ent.length]
+                return resolve_username(username)
 
     return None
 
