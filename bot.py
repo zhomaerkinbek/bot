@@ -40,25 +40,28 @@ def send(chat_id: int, text: str):
 # === Извлечение целевого пользователя ===
 def extract_target_user(update: Update):
     msg = update.message
-    # 1) Ответ на сообщение
+    chat_id = msg.chat.id
+
+    # 1) Пользователь – автор того сообщения, на которое ответили
     if msg.reply_to_message:
         return msg.reply_to_message.from_user
-    # 2) entities
+
+    # 2) По entity TEXT_MENTION (когда вы упоминаете контакт напрямую)
     if msg.entities:
         for ent in msg.entities:
             if ent.type == MessageEntity.TEXT_MENTION:
                 return ent.user
+
+            # 3) По обычному упоминанию @username
             if ent.type == MessageEntity.MENTION:
-                uname = msg.text[ent.offset:ent.offset+ent.length]
+                username = msg.text[ent.offset : ent.offset + ent.length]  # e.g. "@ivan"
                 try:
-                    chat = bot.get_chat(uname)
-                    class U: pass
-                    u = U()
-                    u.id = chat.id
-                    u.full_name = " ".join(filter(None, [chat.first_name, chat.last_name]))
-                    return u
+                    # Получаем информацию об участнике чата с этим username
+                    member = bot.get_chat_member(chat_id, username)
+                    return member.user
                 except TelegramError:
                     return None
+
     return None
 
 # === Вебхук ===
