@@ -64,7 +64,7 @@ def webhook():
         )
         rows = cur.fetchall()
         if not rows:
-            bot.send_message(chat_id, f"Никто ещё не упоминал «{base}».")
+            send_notification(chat_id, f"Никто ещё не упоминал «{base}».")
         else:
             lines = [f"{u}: {c}" for u, c in rows]
             msg = f"📊 Статистика упоминаний «{base}»:\n" + "\n".join(lines)
