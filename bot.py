@@ -119,7 +119,7 @@ def webhook():
             """
             INSERT INTO transactions
                 (chat_id, creditor_id, debtor_id, debtor_name, amount, comment)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (chat_id, me.id, debtor_id, debtor_name, amt, comment)
         )
@@ -168,7 +168,7 @@ def webhook():
             """
             INSERT INTO transactions
                 (chat_id, creditor_id, debtor_id, debtor_name, amount, comment)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (chat_id, me.id, debtor_id, debtor_name, -amt, "возврат")
         )
@@ -182,13 +182,14 @@ def webhook():
     if text.strip() == "/stats":
         cur.execute("""
             SELECT
-                COALESCE(debtor_name, '') as name_text,
+                COALESCE(debtor_name, '') AS name_text,
                 debtor_id,
-                SUM(amount) as total
-            FROM transactions
-            WHERE creditor_id = ? AND chat_id = ?
-            GROUP BY name_text, debtor_id
-            HAVING total > 0
+                SUM(amount)       AS total
+              FROM transactions
+             WHERE creditor_id = %s
+               AND chat_id      = %s
+          GROUP BY name_text, debtor_id
+            HAVING SUM(amount) > 0
         """, (me.id, chat_id))
         rows = cur.fetchall()
         if not rows:
