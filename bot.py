@@ -28,16 +28,16 @@ conn.autocommit = True
 cur = conn.cursor()
 cur.execute("""
 CREATE TABLE IF NOT EXISTS transactions (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id       INTEGER NOT NULL,
-    creditor_id   INTEGER NOT NULL,
-    debtor_id     INTEGER,           -- nullable, если используем plain-name
-    debtor_name   TEXT,              -- nullable, только для plain-name
-    amount        REAL    NOT NULL,
+    id            SERIAL PRIMARY KEY,
+    chat_id       BIGINT        NOT NULL,
+    creditor_id   BIGINT        NOT NULL,
+    debtor_id     BIGINT,
+    debtor_name   TEXT,
+    amount        DOUBLE PRECISION NOT NULL,
     comment       TEXT,
-    ts            DATETIME DEFAULT CURRENT_TIMESTAMP
+    ts            TIMESTAMPTZ   NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-""")
+            """)
 conn.commit()
 
 # === Утилита для отправки ===
