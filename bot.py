@@ -1,8 +1,9 @@
 import os
 import re
-import sqlite3
+import psycopg2
 import requests
 from flask import Flask, request
+from urllib.parse import urlparse
 from telegram import Bot, Update, MessageEntity
 from telegram.error import TelegramError
 
@@ -15,7 +16,14 @@ app = Flask(__name__)
 bot = Bot(token=TOKEN)
 
 # === БД ===
-conn = sqlite3.connect("debts.db", check_same_thread=False)
+url = urlparse(os.environ["DATABASE_URL"])
+conn = psycopg2.connect(
+    dbname   = url.path[1:],
+    user     = url.username,
+    password = url.password,
+    host     = url.hostname,
+    port     = url.port
+)
 cur = conn.cursor()
 cur.execute("""
 CREATE TABLE IF NOT EXISTS transactions (
