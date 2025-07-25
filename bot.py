@@ -1,7 +1,7 @@
 import os
 import re
-import psycopg2
 import requests
+import pg8000.native as pg8000
 from flask import Flask, request
 from urllib.parse import urlparse
 from telegram import Bot, Update, MessageEntity
@@ -17,12 +17,12 @@ bot = Bot(token=TOKEN)
 
 # === БД ===
 url = urlparse(os.environ["DATABASE_URL"])
-conn = psycopg2.connect(
-    dbname   = url.path[1:],
+conn = pg8000.connect(
     user     = url.username,
     password = url.password,
     host     = url.hostname,
-    port     = url.port
+    port     = url.port or 5432,
+    database = url.path.lstrip("/")
 )
 cur = conn.cursor()
 cur.execute("""
