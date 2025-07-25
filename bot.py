@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-import pg8000.native as pg8000
+import pg8000.dbapi as pg8000
 from flask import Flask, request
 from urllib.parse import urlparse
 from telegram import Bot, Update, MessageEntity
@@ -24,6 +24,7 @@ conn = pg8000.connect(
     port     = url.port or 5432,
     database = url.path.lstrip("/")
 )
+conn.autocommit = True
 cur = conn.cursor()
 cur.execute("""
 CREATE TABLE IF NOT EXISTS transactions (
